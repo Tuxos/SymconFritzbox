@@ -406,7 +406,7 @@ class Fritzbox extends IPSModule
         
         $fbox = null;
     }
-    
+
     public function GetAmountOfMissedCalls() {
         // return IPS_GetProperty($this->InstanceID, "FBX_AMOUNT_MISSED_CALLS");
         return GetValue($this->GetIDForIdent("missed_calls_counter"));
