@@ -1,7 +1,7 @@
 AVM Fritzbox PHP Module für IP-Symcon
 ===
 
-Das Mdul basiert auf der Arbeit von Daniel Schaefer: https://github.com/daschaefer/SymconFritzbox
+Das Modul basiert auf der Arbeit von Daniel Schaefer: https://github.com/daschaefer/SymconFritzbox
 
 Ich habe dieses für meine zwecke angepasst.
 
