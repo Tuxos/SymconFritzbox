@@ -26,7 +26,6 @@ class Fritzbox extends IPSModule
         $this->RegisterPropertyInteger("FBX_CALLLIST_CALLTYPE_9", false);
         $this->RegisterPropertyInteger("FBX_CALLLIST_CALLTYPE_10", false);
         $this->RegisterPropertyInteger("FBX_CALLLIST_CALLTYPE_11", false);
-        $this->RegisterPropertyInteger("FBX_WIFI_GUEST_PASSPHRASE_LENGTH", 10);
         $this->RegisterPropertyString("FBX_DIAL_PORT", "");
 
         // Private properties
@@ -52,11 +51,6 @@ class Fritzbox extends IPSModule
         $this->RegisterProfileBooleanEx("FBX.InternetState", "Internet", "", "", Array(  
                                                                                         Array(false, "Getrennt",  "", 0xFF0000),
                                                                                         Array(true,  "Verbunden", "", 0x00FF00)
-                                                                                      ));
-        
-        $this->RegisterProfileBooleanEx("FBX.WLAN", "Network", "", "", Array(  
-                                                                                        Array(false, "Aus",  "", 0xFF0000),
-                                                                                        Array(true,  "Ein", "", 0x00FF00)
                                                                                       ));
 
         $this->RegisterProfileBooleanEx("FBX.Restart", "Power", "", "", Array(  
@@ -100,22 +94,6 @@ class Fritzbox extends IPSModule
         $restart = $this->RegisterVariableBoolean("restart", "Fritzbox Neutarten");
         IPS_SetVariableCustomProfile($restart, "FBX.Restart");
         $this->EnableAction("restart");
-
-        $wifiGuest = $this->RegisterVariableBoolean("wifi_guest", "WLAN: Gäste");
-        IPS_SetVariableCustomProfile($wifiGuest, "FBX.WLAN");
-        $this->EnableAction("wifi_guest");
-        
-        $wifiGuest = $this->RegisterVariableBoolean("wifi_guest", "WLAN: Gäste");
-        IPS_SetVariableCustomProfile($wifiGuest, "FBX.WLAN");
-        $this->EnableAction("wifi_guest");
-        
-        $wifiGuestPassphrase = $this->RegisterVariableString("wifi_guest_passphrase", "WLAN: Gäste - WPA Schlüssel");
-        IPS_SetIcon($wifiGuestPassphrase, "Key");
-        IPS_SetHidden($wifiGuestPassphrase, true);
-        
-        $wifiMain = $this->RegisterVariableBoolean("wifi_main", "WLAN: Intern");
-        IPS_SetVariableCustomProfile($wifiMain, "FBX.WLAN");
-        $this->EnableAction("wifi_main");
         
         IPS_SetProperty($this->InstanceID, "FBX_REVERSE_CACHE", "[]"); // clear cache
         
@@ -134,12 +112,6 @@ class Fritzbox extends IPSModule
 
         switch ($Ident) 
         { 
-            case 'wifi_guest':
-                $this->SetWifiState(2, (int)$Value);
-                break;
-            case 'wifi_main':
-                $this->SetWifiState(1, (int)$Value);
-                break;
             case 'reconnect':
                 $this->Reconnect();
                 break;
@@ -263,7 +235,6 @@ class Fritzbox extends IPSModule
 
         $this->UpdateCallList();
         $this->UpdateConnectionInfos();
-        $this->UpdateWifiInfos();
     }
     
     public function GetMessageAsBinary()
@@ -341,28 +312,6 @@ class Fritzbox extends IPSModule
         
         IPS_SetProperty($this->InstanceID, "FBX_REVERSE_CACHE", json_encode($cache));
         return $cache[$phoneNumber];
-    }
-    
-    public function SetWifiState($module, $state) {
-        if(strlen(trim(IPS_GetProperty($this->InstanceID, "FBX_USERNAME"))) == 0 || strlen(trim(IPS_GetProperty($this->InstanceID, "FBX_PASSWORD"))) == 0) 
-        {
-            $this->ModuleLogMessage("Fehler: Fritzbox Benutzername oder Passwort nicht gesetzt!");
-            return false;
-        }
-
-        $client = new SoapClient(
-            null,
-            array(
-                'location'	=> "http://".IPS_GetProperty($this->InstanceID, "FBX_IP").":49000/upnp/control/wlanconfig".$module,
-                'uri'		=> "urn:dslforum-org:service:WLANConfiguration:".$module,
-                'noroot' 	=> True,
-                'login'     => IPS_GetProperty($this->InstanceID, "FBX_USERNAME"),
-                'password'  => IPS_GetProperty($this->InstanceID, "FBX_PASSWORD")
-            )
-        );        
-        
-        $client->SetEnable(new SoapParam($state, 'NewEnable'));
-        $this->UpdateWifiInfos();
     }
 
     public function Dial($number) {
@@ -625,36 +574,6 @@ class Fritzbox extends IPSModule
         SetValue($this->GetIDForIdent("speed_upstream"), round($connInfo['NewLayer1UpstreamMaxBitRate']/1000000, 1)." MBit/s");
         SetValue($this->GetIDForIdent("speed_downstream"), round($connInfo['NewLayer1DownstreamMaxBitRate']/1000000, 1)." MBit/s");
         SetValue($this->GetIDForIdent("externalip"), $connInfo['ExternalIPAddress']);        
-    }
-    
-    protected function UpdateWifiInfos() {
-        $client = new SoapClient(
-            null,
-            array(
-                'location'	=> "http://".IPS_GetProperty($this->InstanceID, "FBX_IP").":49000/upnp/control/wlanconfig1",
-                'uri'		=> "urn:dslforum-org:service:WLANConfiguration:1",
-                'noroot' 	=> True,
-                'login'     => IPS_GetProperty($this->InstanceID, "FBX_USERNAME"),
-                'password'  => IPS_GetProperty($this->InstanceID, "FBX_PASSWORD")
-            )
-        );
-        
-        $status = $client->GetInfo();
-        SetValue($this->GetIDForIdent("wifi_main"), (boolean)$status['NewEnable']);
-                
-        $client = new SoapClient(
-            null,
-            array(
-                'location'	=> "http://".IPS_GetProperty($this->InstanceID, "FBX_IP").":49000/upnp/control/wlanconfig2",
-                'uri'		=> "urn:dslforum-org:service:WLANConfiguration:2",
-                'noroot' 	=> True,
-                'login'     => IPS_GetProperty($this->InstanceID, "FBX_USERNAME"),
-                'password'  => IPS_GetProperty($this->InstanceID, "FBX_PASSWORD")
-            )
-        );
-        
-        $status = $client->GetInfo();
-        SetValue($this->GetIDForIdent("wifi_guest"), (boolean)$status['NewEnable']);
     }
     
     protected function RenderCallList($callList=null) {
